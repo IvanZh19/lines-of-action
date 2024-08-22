@@ -38,9 +38,21 @@ class Highlight(pygame.sprite.Sprite):
         self.pos = pos
         self.rect = self.image.get_rect(center=pos_to_coords(pos))
 
+class Indicator(pygame.sprite.Sprite):
+    def __init__(self,pos,source_piece):
+        super().__init__()
+        self.image = pygame.image.load('graphics/legal.png').convert_alpha()
+        self.image = pygame.transform.rotozoom(self.image,0,1/4)
+        self.pos = pos
+        self.source_piece = source_piece
+        self.rect = self.image.get_rect(center=pos_to_coords(pos))
+
 def reset_board():
+    '''Clears the groups and lists that pieces and indicators are stored in'''
     white.empty()
     black.empty()
+    highlight.empty()
+    indicator.empty()
     for i in range(1,7):
         white.add(White((i,7)))
         white.add(White((i,0)))
@@ -49,33 +61,43 @@ def reset_board():
 
 def valid_move_y(t_piece, t_list, t_len, opp_color, inc):
     '''Helper for get_moves that checks valid moves based on y conditions'''
-    add_move = True
     if inc:
+        if t_piece.y + t_len > 7:
+            return False
         for p in t_list:
-            if (t_piece.y + t_len > 7) or (p.color == opp_color and p.y < t_piece.y + t_len) or (p.color != opp_color and p.y == t_piece.y + t_len):
-                add_move = False
-                break
+            blocked = p.color == opp_color and 0 < p.y - t_piece.y < t_len
+            occupied = p.color != opp_color and p.y == t_piece.y + t_len
+            if blocked or occupied:
+                return False
     else:
+        if t_piece.y - t_len < 0:
+            return False
         for p in t_list:
-            if (t_piece.y - t_len < 0) or (p.color == opp_color and p.y > t_piece.y - t_len) or (p.color != opp_color and p.y == t_piece.y - t_len):
-                add_move = False
-                break
-    return add_move
+            blocked = p.color == opp_color and 0 < t_piece.y - p.y < t_len
+            occupied = p.color != opp_color and p.y == t_piece.y - t_len
+            if blocked or occupied:
+                return False
+    return True
 
 def valid_move_x(t_piece, t_list, t_len, opp_color, inc):
     '''Helper for get_moves that checks valid moves based on x conditions'''
-    add_move = True
     if inc:
+        if t_piece.x + t_len > 7:
+            return False
         for p in t_list:
-            if (t_piece.x + t_len > 7) or (p.color == opp_color and p.x < t_piece.x + t_len) or (p.color != opp_color and p.x == t_piece.x + t_len):
-                add_move = False
-                break
+            blocked = p.color == opp_color and 0 < p.x - t_piece.x < t_len
+            occupied = p.color != opp_color and p.x == t_piece.x + t_len
+            if blocked or occupied:
+                return False
     else:
+        if t_piece.x - t_len < 0:
+            return False
         for p in t_list:
-            if (t_piece.x - t_len < 0) or (p.color == opp_color and p.x > t_piece.x - t_len) or (p.color != opp_color and p.x == t_piece.x - t_len):
-                add_move = False
-                break
-    return add_move
+            blocked = p.color == opp_color and 0 < t_piece.x - p.x < t_len
+            occupied = p.color != opp_color and p.x == t_piece.x - t_len
+            if blocked or occupied:
+                return False
+    return True
 
 def get_moves(piece,piece_list):
     # first collect the pieces that are on all lines that the piece is on, regardless of color
@@ -91,33 +113,33 @@ def get_moves(piece,piece_list):
     we = len(we_list)
     nw_se = len(nw_se_list)
     ne_sw = len(ne_sw_list)
-    if valid_move_y(piece,ns_list,ns,opp_color,inc=True): # n
+    if valid_move_y(piece,ns_list,ns,opp_color,True): # n
         legal.append((piece.x,piece.y+ns))
-    if valid_move_y(piece,ns_list,ns,opp_color,inc=False): # s
+    if valid_move_y(piece,ns_list,ns,opp_color,False): # s
         legal.append((piece.x,piece.y-ns))
-    if valid_move_x(piece,we_list,we,opp_color,inc=True): # e
+    if valid_move_x(piece,we_list,we,opp_color,True): # e
         legal.append((piece.x+we,piece.y))
-    if valid_move_x(piece,we_list,we,opp_color,inc=False): # w
+    if valid_move_x(piece,we_list,we,opp_color,False): # w
         legal.append((piece.x-we,piece.y))
-    if valid_move_y(piece,nw_se_list,nw_se,opp_color,inc=True): # nw
+    if valid_move_y(piece,nw_se_list,nw_se,opp_color,True) and valid_move_x(piece,nw_se_list,nw_se,opp_color,False): # nw
         legal.append((piece.x-nw_se,piece.y+nw_se))
-    if valid_move_y(piece,nw_se_list,nw_se,opp_color,inc=False): # se
+    if valid_move_y(piece,nw_se_list,nw_se,opp_color,False) and valid_move_x(piece,nw_se_list,nw_se,opp_color,True): # se
         legal.append((piece.x+nw_se,piece.y-nw_se))
-    if valid_move_y(piece,ne_sw_list,ne_sw,opp_color,inc=True): # ne
+    if valid_move_y(piece,ne_sw_list,ne_sw,opp_color,True) and valid_move_x(piece,ne_sw_list,ne_sw,opp_color,True): # ne
         legal.append((piece.x+ne_sw,piece.y+ne_sw))
-    if valid_move_y(piece,ne_sw_list,ne_sw,opp_color,inc=False): # sw
+    if valid_move_y(piece,ne_sw_list,ne_sw,opp_color,False) and valid_move_x(piece,ne_sw_list,ne_sw,opp_color,False): # sw
         legal.append((piece.x-ne_sw,piece.y-ne_sw))
+    print(legal)
     return legal
 
 def mouse_to_pos():
+    '''Converts mouse coordinates in the window to pos on the board'''
     mouse_coords = pygame.mouse.get_pos()
     x_pos = (mouse_coords[0]-20)//80
     y_pos = 7-(mouse_coords[1]-20)//80
     return (x_pos,y_pos)
 
-def check_highlight():
-    mouse = pygame.mouse.get_pressed()
-    mouse_pos = mouse_to_pos()
+def make_highlight(mouse,mouse_pos):
     # if right clicked on a square, do highlighting
     if mouse[2] and -1 < mouse_pos[0] < 8 and -1 < mouse_pos[1] < 8:
         select = [h for h in highlight if h.pos == mouse_pos]
@@ -138,6 +160,40 @@ def check_highlight():
             if not hit:
                 highlight.empty()
 
+def make_indicator(mouse,mouse_pos,all_list):
+    # if left clicked on a square,
+    if mouse[0] and -1 < mouse_pos[0] < 8 and -1 < mouse_pos[1] < 8:
+        select = [p for p in all_list if p.pos == mouse_pos and p.color == player_color]
+        indicator.empty()
+        if select == []:
+            return
+        else:
+            print('clicked on piece')
+            indicator.empty()
+            for i in get_moves(select[0],all_list):
+                indicator.add(Indicator(i, select[0]))
+            return select[0].pos
+
+def confirm_move(mouse,mouse_pos,player_color):
+    if mouse[0] and -1 < mouse_pos[0] < 8 and -1 < mouse_pos[1] < 8:
+        select = [i for i in indicator if i.pos == mouse_pos]
+        if select == []:
+            print('confirm_move did not detect clicking on an indicator')
+            return False # if the player didn't click any piece
+        select[0].source_piece.kill()
+        if player_color == 'white':
+            capture = [p for p in black if p.pos == mouse_pos]
+            if capture != []:
+                capture[0].kill()
+            white.add(White(select[0].pos))
+        else:
+            capture = [p for p in white if p.pos == mouse_pos]
+            if capture != []:
+                capture[0].kill()
+            black.add(Black(select[0].pos))
+        return True
+
+
 pygame.init()
 screen = pygame.display.set_mode((1000,680))
 pygame.display.set_caption('Lines of Action')
@@ -155,13 +211,12 @@ bg_surf.fill('#757C88')
 white = pygame.sprite.Group()
 black = pygame.sprite.Group()
 highlight = pygame.sprite.Group()
+indicator = pygame.sprite.Group()
 
-player_color = 'white'
+player_color = 'black'
 
 reset_board()
-white_list = white.sprites()
-black_list = black.sprites()
-all_list = white_list + black_list
+
 
 while True:
     for event in pygame.event.get():
@@ -169,7 +224,17 @@ while True:
             pygame.quit()
             exit()
         if event.type == pygame.MOUSEBUTTONDOWN:
-            check_highlight()
+            mouse = pygame.mouse.get_pressed()
+            last_clicked = mouse_to_pos()
+            if confirm_move(mouse,last_clicked,player_color):
+                indicator.empty()
+                if player_color == 'white': player_color = 'black'
+                else: player_color = 'white'
+            else:
+                make_highlight(mouse,last_clicked)
+                print(make_indicator(mouse,last_clicked,all_list))
+
+
 
     screen.blit(bg_surf,(0,0))
     screen.blit(border_surf,(0,0))
@@ -179,7 +244,11 @@ while True:
     black.draw(screen)
 
     highlight.draw(screen)
-    print(mouse_to_pos())
+    indicator.draw(screen)
+    white_list = white.sprites()
+    black_list = black.sprites()
+    all_list = white_list + black_list
+
 
     pygame.display.update()
     clock.tick(60)
