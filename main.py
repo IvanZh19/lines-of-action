@@ -129,7 +129,6 @@ def get_moves(piece,piece_list):
         legal.append((piece.x+ne_sw,piece.y+ne_sw))
     if valid_move_y(piece,ne_sw_list,ne_sw,opp_color,False) and valid_move_x(piece,ne_sw_list,ne_sw,opp_color,False): # sw
         legal.append((piece.x-ne_sw,piece.y-ne_sw))
-    print(legal)
     return legal
 
 def mouse_to_pos():
@@ -168,7 +167,6 @@ def make_indicator(mouse,mouse_pos,all_list):
         if select == []:
             return
         else:
-            print('clicked on piece')
             indicator.empty()
             for i in get_moves(select[0],all_list):
                 indicator.add(Indicator(i, select[0]))
@@ -178,7 +176,6 @@ def confirm_move(mouse,mouse_pos,player_color):
     if mouse[0] and -1 < mouse_pos[0] < 8 and -1 < mouse_pos[1] < 8:
         select = [i for i in indicator if i.pos == mouse_pos]
         if select == []:
-            print('confirm_move did not detect clicking on an indicator')
             return False # if the player didn't click any piece
         select[0].source_piece.kill()
         if player_color == 'white':
@@ -193,6 +190,20 @@ def confirm_move(mouse,mouse_pos,player_color):
             black.add(Black(select[0].pos))
         return True
 
+def connected(x,y,pos_list):
+    adjacent = [(x-1,y),(x+1,y),(x-1,y+1),(x,y+1),(x+1,y+1),(x-1,y-1),(x,y-1),(x+1,y-1)]
+    adjacent = [point for point in adjacent if -1 < point[0] < 8 and -1 < point[1] < 8]
+    return [i for i in adjacent if i in pos_list]
+
+def check_win(group):
+    points = {p.pos for p in group}
+    seen = set()
+    border = [choice(list(points))]
+    while len(border) != 0:
+        e = border.pop()
+        seen.add(e)
+        border.extend([c for c in connected(e[0],e[1],points) if c not in seen])
+    return len(seen) == len(group)
 
 pygame.init()
 screen = pygame.display.set_mode((1000,680))
@@ -217,7 +228,6 @@ player_color = 'black'
 
 reset_board()
 
-
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -232,9 +242,15 @@ while True:
                 else: player_color = 'white'
             else:
                 make_highlight(mouse,last_clicked)
-                print(make_indicator(mouse,last_clicked,all_list))
-
-
+                make_indicator(mouse,last_clicked,all_list)
+            white_win = check_win(white)
+            black_win = check_win(black)
+            if white_win and black_win:
+                print('DRAW')
+            elif white_win:
+                print('White wins')
+            elif black_win:
+                print('Black wins')
 
     screen.blit(bg_surf,(0,0))
     screen.blit(border_surf,(0,0))
@@ -248,7 +264,6 @@ while True:
     white_list = white.sprites()
     black_list = black.sprites()
     all_list = white_list + black_list
-
 
     pygame.display.update()
     clock.tick(60)
