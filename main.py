@@ -8,6 +8,17 @@ def pos_to_coords(pos):
     y_coord = 60 + 80*(7-pos[1])
     return (x_coord,y_coord)
 
+def pos_to_notation(pos):
+    '''pos is a tuple representing indices, notation is a string containing standard chess notation for recording'''
+    file = chr(ord('`')+pos[0]+1)
+    return str(file) + str(pos[1]+1)
+
+def display_move(index,move_color,y):
+    move = pygame.transform.scale2x(font_courier.render(f'{move_color}: {moves[index][0]}->{moves[index][1]}',False,(0,0,0)))
+    move_rect = move.get_rect(topleft=(700,y))
+    screen.blit(move,move_rect)
+
+
 class White(pygame.sprite.Sprite):
     def __init__(self,pos):
         super().__init__()
@@ -172,11 +183,14 @@ def make_indicator(mouse,mouse_pos,all_list):
                 indicator.add(Indicator(i, select[0]))
             return select[0].pos
 
-def confirm_move(mouse,mouse_pos,player_color):
+def confirm_move(mouse,mouse_pos,player_color,moves):
     if mouse[0] and -1 < mouse_pos[0] < 8 and -1 < mouse_pos[1] < 8:
         select = [i for i in indicator if i.pos == mouse_pos]
         if select == []:
             return False # if the player didn't click any piece
+        start = pos_to_notation(select[0].source_piece.pos)
+        end = pos_to_notation(select[0].pos)
+        moves.append((start,end))
         select[0].source_piece.kill()
         if player_color == 'white':
             capture = [p for p in black if p.pos == mouse_pos]
@@ -209,6 +223,7 @@ pygame.init()
 screen = pygame.display.set_mode((1000,680))
 pygame.display.set_caption('Lines of Action')
 clock = pygame.time.Clock()
+font_courier = pygame.font.Font('font/courier-prime/courier-prime.ttf')
 
 board_surf = pygame.image.load('graphics/board.png').convert()
 board_surf = pygame.transform.scale2x(board_surf)
@@ -223,8 +238,10 @@ white = pygame.sprite.Group()
 black = pygame.sprite.Group()
 highlight = pygame.sprite.Group()
 indicator = pygame.sprite.Group()
+moves = []
 
 player_color = 'black'
+game_active = False
 
 reset_board()
 
@@ -233,24 +250,29 @@ while True:
         if event.type == pygame.QUIT:
             pygame.quit()
             exit()
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            mouse = pygame.mouse.get_pressed()
-            last_clicked = mouse_to_pos()
-            if confirm_move(mouse,last_clicked,player_color):
-                indicator.empty()
-                if player_color == 'white': player_color = 'black'
-                else: player_color = 'white'
-            else:
-                make_highlight(mouse,last_clicked)
-                make_indicator(mouse,last_clicked,all_list)
-            white_win = check_win(white)
-            black_win = check_win(black)
-            if white_win and black_win:
-                print('DRAW')
-            elif white_win:
-                print('White wins')
-            elif black_win:
-                print('Black wins')
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            game_active = True
+        if game_active:
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse = pygame.mouse.get_pressed()
+                last_clicked = mouse_to_pos()
+                if confirm_move(mouse,last_clicked,player_color,moves):
+                    print(moves)
+                    move_color = player_color
+                    indicator.empty()
+                    if player_color == 'white': player_color = 'black'
+                    else: player_color = 'white'
+                else:
+                    make_highlight(mouse,last_clicked)
+                    make_indicator(mouse,last_clicked,all_list)
+                white_win = check_win(white)
+                black_win = check_win(black)
+                if white_win and black_win:
+                    print('DRAW')
+                elif white_win:
+                    print('White wins')
+                elif black_win:
+                    print('Black wins')
 
     screen.blit(bg_surf,(0,0))
     screen.blit(border_surf,(0,0))
@@ -264,6 +286,23 @@ while True:
     white_list = white.sprites()
     black_list = black.sprites()
     all_list = white_list + black_list
+
+    if moves != []:
+        for i in range(len(moves)):
+            if i % 2 == 0:
+                move_color = 'black'
+            else:
+                move_color = 'white'
+            display_move(i,move_color,150+30*i)
+
+
+    if not game_active:
+        message1 = pygame.transform.scale2x(font_courier.render('Press the space bar',False,(0,0,0)))
+        message2 = pygame.transform.scale2x(font_courier.render('to start the game:',False,(0,0,0)))
+        message1_rect = message1.get_rect(topleft=(700,100))
+        message2_rect = message2.get_rect(topleft=(700,120))
+        screen.blit(message1,message1_rect)
+        screen.blit(message2,message2_rect)
 
     pygame.display.update()
     clock.tick(60)
