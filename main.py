@@ -13,12 +13,6 @@ def pos_to_notation(pos):
     file = chr(ord('`')+pos[0]+1)
     return str(file) + str(pos[1]+1)
 
-def display_move(index,move_color,y):
-    move = pygame.transform.scale2x(font_courier.render(f'{move_color}: {moves[index][0]}->{moves[index][1]}',False,(0,0,0)))
-    move_rect = move.get_rect(topleft=(700,y))
-    screen.blit(move,move_rect)
-
-
 class White(pygame.sprite.Sprite):
     def __init__(self,pos):
         super().__init__()
@@ -57,6 +51,37 @@ class Indicator(pygame.sprite.Sprite):
         self.pos = pos
         self.source_piece = source_piece
         self.rect = self.image.get_rect(center=pos_to_coords(pos))
+
+class History(pygame.sprite.Sprite):
+    def __init__(self,coord,move_history):
+        super().__init__()
+        self.image = pygame.Surface((275,500)).convert_alpha()
+        self.image.fill('#432616')
+        self.move_history = move_history
+        self.coord = coord
+        self.rect = self.image.get_rect(topleft=coord)
+
+    def add_move(self,move):
+        '''move is a tuple of form (start, end, captured) that will be added to move_history'''
+        self.move_history.append(move)
+
+    def display_move(self,index,move_color,y,move_history):
+        if not move_history[index][2]:
+            move = pygame.transform.scale2x(font_courier.render(f'{move_color}: {move_history[index][0]}--->{move_history[index][1]}',False,(0,0,0)))
+        else:
+            move = pygame.transform.scale2x(font_courier.render(f'{move_color}: {move_history[index][0]}-X->{move_history[index][1]}',False,(0,0,0)))
+        move_rect = move.get_rect(topleft=(720,y))
+        screen.blit(move,move_rect)
+
+    def update(self):
+        if move_history != []:
+            for i in range(len(move_history)):
+                if i % 2 == 0:
+                    move_color = 'Black'
+                else:
+                    move_color = 'White'
+                self.display_move(i,move_color,150+30*i,move_history)
+
 
 def reset_board():
     '''Clears the groups and lists that pieces and indicators are stored in'''
@@ -183,25 +208,28 @@ def make_indicator(mouse,mouse_pos,all_list):
                 indicator.add(Indicator(i, select[0]))
             return select[0].pos
 
-def confirm_move(mouse,mouse_pos,player_color,moves):
+def confirm_move(mouse,mouse_pos,player_color,move_history):
     if mouse[0] and -1 < mouse_pos[0] < 8 and -1 < mouse_pos[1] < 8:
         select = [i for i in indicator if i.pos == mouse_pos]
         if select == []:
             return False # if the player didn't click any piece
         start = pos_to_notation(select[0].source_piece.pos)
         end = pos_to_notation(select[0].pos)
-        moves.append((start,end))
+        captured = False
         select[0].source_piece.kill()
         if player_color == 'white':
             capture = [p for p in black if p.pos == mouse_pos]
             if capture != []:
+                captured = True
                 capture[0].kill()
             white.add(White(select[0].pos))
         else:
             capture = [p for p in white if p.pos == mouse_pos]
             if capture != []:
+                captured = True
                 capture[0].kill()
             black.add(Black(select[0].pos))
+        move_history.append((start,end,captured))
         return True
 
 def connected(x,y,pos_list):
@@ -238,7 +266,11 @@ white = pygame.sprite.Group()
 black = pygame.sprite.Group()
 highlight = pygame.sprite.Group()
 indicator = pygame.sprite.Group()
-moves = []
+
+move_history = []
+history = pygame.sprite.GroupSingle()
+history.add(History((700,100),move_history))
+
 
 player_color = 'black'
 game_active = False
@@ -256,9 +288,8 @@ while True:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse = pygame.mouse.get_pressed()
                 last_clicked = mouse_to_pos()
-                if confirm_move(mouse,last_clicked,player_color,moves):
-                    print(moves)
-                    move_color = player_color
+                if confirm_move(mouse,last_clicked,player_color,move_history):
+                    print(move_history)
                     indicator.empty()
                     if player_color == 'white': player_color = 'black'
                     else: player_color = 'white'
@@ -280,21 +311,16 @@ while True:
 
     white.draw(screen)
     black.draw(screen)
-
-    highlight.draw(screen)
-    indicator.draw(screen)
     white_list = white.sprites()
     black_list = black.sprites()
     all_list = white_list + black_list
 
-    if moves != []:
-        for i in range(len(moves)):
-            if i % 2 == 0:
-                move_color = 'black'
-            else:
-                move_color = 'white'
-            display_move(i,move_color,150+30*i)
+    highlight.draw(screen)
+    indicator.draw(screen)
 
+    if game_active:
+        history.draw(screen)
+        history.update()
 
     if not game_active:
         message1 = pygame.transform.scale2x(font_courier.render('Press the space bar',False,(0,0,0)))
